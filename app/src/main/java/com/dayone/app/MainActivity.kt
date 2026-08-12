@@ -17,13 +17,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -84,6 +81,12 @@ fun getPrefs(context: Context): SharedPreferences =
 private val LightColors = lightColorScheme()
 private val DarkColors = darkColorScheme()
 
+fun scaleFor(size: String): Float = when (size) {
+    "S" -> 0.85f
+    "L" -> 1.25f
+    else -> 1.0f
+}
+
 @Composable
 fun DayOneApp(context: Context) {
     val prefs = remember { getPrefs(context) }
@@ -93,7 +96,9 @@ fun DayOneApp(context: Context) {
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var isDarkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
+    var fontSize by remember { mutableStateOf(prefs.getString("font_size", "M") ?: "M") }
     val scope = rememberCoroutineScope()
+    val scale = scaleFor(fontSize)
 
     fun loadTimes() {
         if (city.isBlank() || country.isBlank()) {
@@ -141,7 +146,7 @@ fun DayOneApp(context: Context) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("DayOne — Salah", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("DayOne — Salah", fontSize = (24 * scale).sp, fontWeight = FontWeight.Bold)
                     Switch(
                         checked = isDarkMode,
                         onCheckedChange = {
@@ -150,6 +155,32 @@ fun DayOneApp(context: Context) {
                         }
                     )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("S", "M", "L").forEach { size ->
+                        val selected = fontSize == size
+                        Button(
+                            onClick = {
+                                fontSize = size
+                                prefs.edit().putString("font_size", size).apply()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selected)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Text(size)
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
@@ -171,25 +202,25 @@ fun DayOneApp(context: Context) {
                     onClick = { loadTimes() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (loading) "Sugaya..." else "Hel Waqtiyada Salaadda")
+                    Text(if (loading) "Sugaya..." else "Hel Waqtiyada Salaadda", fontSize = (16 * scale).sp)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 errorMsg?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+                    Text(it, color = MaterialTheme.colorScheme.error, fontSize = (14 * scale).sp)
                 }
 
                 times?.let { t ->
-                    PrayerRow("Fajr", t.fajr)
-                    PrayerRow("Dhuhr", t.dhuhr)
-                    PrayerRow("Asr", t.asr)
-                    PrayerRow("Maghrib", t.maghrib)
-                    PrayerRow("Isha", t.isha)
+                    PrayerRow("Fajr", t.fajr, scale)
+                    PrayerRow("Dhuhr", t.dhuhr, scale)
+                    PrayerRow("Asr", t.asr, scale)
+                    PrayerRow("Maghrib", t.maghrib, scale)
+                    PrayerRow("Isha", t.isha, scale)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         "Digniino ayaa la dejiyay maalinta xigta oo saacadaas ah.",
-                        fontSize = 14.sp
+                        fontSize = (14 * scale).sp
                     )
                 }
             }
@@ -198,15 +229,15 @@ fun DayOneApp(context: Context) {
 }
 
 @Composable
-fun PrayerRow(name: String, time: String) {
+fun PrayerRow(name: String, time: String, scale: Float) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(name, fontWeight = FontWeight.SemiBold)
-        Text(time)
+        Text(name, fontWeight = FontWeight.SemiBold, fontSize = (16 * scale).sp)
+        Text(time, fontSize = (16 * scale).sp)
     }
 }
 
