@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,10 +17,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,16 +78,56 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun getPrefs(context: Context): SharedPreferences =
+    context.getSharedPreferences("dayone_prefs", Context.MODE_PRIVATE)
+
+private val LightColors = lightColorScheme()
+private val DarkColors = darkColorScheme()
+
 @Composable
 fun DayOneApp(context: Context) {
-    var city by remember { mutableStateOf("") }
-    var country by remember { mutableStateOf("") }
+    val prefs = remember { getPrefs(context) }
+    var city by remember { mutableStateOf(prefs.getString("city", "") ?: "") }
+    var country by remember { mutableStateOf(prefs.getString("country", "") ?: "") }
     var times by remember { mutableStateOf<PrayerTimes?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var isDarkMode by remember { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
     val scope = rememberCoroutineScope()
 
-    MaterialTheme {
+    fun loadTimes() {
+        if (city.isBlank() || country.isBlank()) {
+            errorMsg = "Fadlan geli magaalada iyo dalka"
+            return
+        }
+        errorMsg = null
+        loading = true
+        scope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    fetchPrayerTimes(city, country)
+                }
+                times = result
+                schedulePrayerAlarms(context, result)
+                prefs.edit()
+                    .putString("city", city)
+                    .putString("country", country)
+                    .apply()
+            } catch (e: Exception) {
+                errorMsg = "Khalad: ${e.message}"
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (city.isNotBlank() && country.isNotBlank()) {
+            loadTimes()
+        }
+    }
+
+    MaterialTheme(colorScheme = if (isDarkMode) DarkColors else LightColors) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -92,7 +136,20 @@ fun DayOneApp(context: Context) {
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("DayOne — Salah", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("DayOne — Salah", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Switch(
+                        checked = isDarkMode,
+                        onCheckedChange = {
+                            isDarkMode = it
+                            prefs.edit().putBoolean("dark_mode", it).apply()
+                        }
+                    )
+                }
                 Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
@@ -111,27 +168,7 @@ fun DayOneApp(context: Context) {
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Button(
-                    onClick = {
-                        if (city.isBlank() || country.isBlank()) {
-                            errorMsg = "Fadlan geli magaalada iyo dalka"
-                            return@Button
-                        }
-                        errorMsg = null
-                        loading = true
-                        scope.launch {
-                            try {
-                                val result = withContext(Dispatchers.IO) {
-                                    fetchPrayerTimes(city, country)
-                                }
-                                times = result
-                                schedulePrayerAlarms(context, result)
-                            } catch (e: Exception) {
-                                errorMsg = "Khalad: ${e.message}"
-                            } finally {
-                                loading = false
-                            }
-                        }
-                    },
+                    onClick = { loadTimes() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(if (loading) "Sugaya..." else "Hel Waqtiyada Salaadda")
