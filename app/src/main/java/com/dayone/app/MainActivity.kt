@@ -56,7 +56,7 @@ fun RootApp(context: android.content.Context) {
     MaterialTheme(colorScheme = if (isDarkMode) DarkColors else LightColors) {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                TabRow(selectedTabIndex = tab, modifier = Modifier.weight(0f)) {
+                TabRow(selectedTabIndex = tab) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Salah") })
                     Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Gym") })
                 }
